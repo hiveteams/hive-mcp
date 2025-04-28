@@ -211,9 +211,21 @@ app.get("/mcp", (req, res) => {
     "Cache-Control": "no-cache",
     "Connection": "keep-alive"
   });
-  res.status(200).write("event: ping\ndata: ok\n\n");
-  // Optionally, keep the connection open for real SSE
-  // res.end(); // Uncomment if you want to immediately close the connection
+  res.flushHeaders();
+
+  // Send an initial ping
+  res.write("event: ping\ndata: ok\n\n");
+
+  // Send a ping every 15 seconds to keep the connection alive
+  const interval = setInterval(() => {
+    res.write("event: ping\ndata: ok\n\n");
+  }, 15000);
+
+  // Clean up when the client closes the connection
+  req.on("close", () => {
+    clearInterval(interval);
+    res.end();
+  });
 });
 
 // Main MCP endpoint
