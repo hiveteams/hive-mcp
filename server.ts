@@ -112,8 +112,6 @@ server.tool(
     projectId: z.string().optional(),
     assigneeId: z.string().optional(),
     description: z.string().optional(),
-    startDate: z.string().optional(),
-    dueDate: z.string().optional(),
   },
   async (
     args: {
@@ -121,8 +119,6 @@ server.tool(
       projectId?: string;
       assigneeId?: string;
       description?: string;
-      startDate?: string;
-      dueDate?: string;
     },
     extra: Extra,
   ) => {
@@ -151,17 +147,31 @@ server.tool(
   "update_action",
   {
     actionId: z.string(),
-    updates: z.record(z.any()),
+    status: z.string(),          // the only field callers may change
   },
   async (
-    { actionId, updates }: { actionId: string; updates: Record<string, unknown> },
+    { actionId, status }: { actionId: string; status: string },
     extra: Extra,
   ) => {
     const token = getHiveToken(extra);
-    const resp = await axios.put(`${HIVE_API_BASE}/actions/${actionId}`, updates, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return resp.data;
+    const workspace = resolveWorkspace(extra);
+    if (!workspace) throw new Error("workspace required (query string in /sse)");
+
+    // same pattern as create_action: POST, api_key header, workspace in body
+    const resp = await axios.post(
+      `${HIVE_API_BASE}/actions/update`,
+      { actionId, status, workspace },
+      { headers: { "api_key": token } },
+    );
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(resp.data),
+        },
+      ],
+    };
   },
 );
 
