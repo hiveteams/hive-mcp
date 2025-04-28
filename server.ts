@@ -13,76 +13,16 @@ const server = new McpServer({
   version: "1.0.0"
 });
 
-// Utility to get the Hive API token from the request or environment
-function getHiveToken(context: any): string | null {
-  // Try to get from context (MCP SDK context may pass headers)
-  const authHeader = context?.headers?.authorization || context?.headers?.Authorization;
+// Utility to get the Hive API token from the extra (context)
+function getHiveToken(extra: any): string | null {
+  const authHeader = extra?.headers?.authorization || extra?.headers?.Authorization;
   if (authHeader && authHeader.startsWith("Bearer ")) {
     return authHeader.slice(7);
   }
-  // Fallback to env
   return process.env.HIVE_API_TOKEN || null;
 }
 
 const HIVE_API_BASE = "https://app.hive.com/api/v1";
-
-// Only keep the plain object tool exports and the rest of the server logic
-
-const app = express();
-const port = process.env.PORT || 4100;
-
-// Store active transport
-let activeTransport: SSEServerTransport | null = null;
-
-// Enhanced CORS setup
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-}));
-app.use(express.json());
-
-// SSE endpoint for server-to-client communication
-app.get("/sse", (req, res) => {
-  console.log("SSE connection attempt");
-  // Create transport
-  const transport = new SSEServerTransport("/messages", res);
-  activeTransport = transport;
-  // Connect server to transport
-  server.connect(transport);
-  console.log("SSE connection established");
-  // Handle connection close
-  req.on('close', () => {
-    console.log("SSE connection closed");
-    if (activeTransport === transport) {
-      activeTransport = null;
-    }
-  });
-});
-
-// Message endpoint for client-to-server communication
-app.post("/messages", (req, res) => {
-  if (!activeTransport) {
-    return res.status(503).send("SSE connection not established");
-  }
-  console.log("Received message from client");
-  try {
-    activeTransport.handlePostMessage(req, res);
-  } catch (error: any) {
-    console.error(`Error handling message: ${error.message}`);
-    res.status(500).send(error.message);
-  }
-});
-
-// Health check endpoint
-app.get("/health", (_req, res) => {
-  res.status(200).send("OK");
-});
-
-app.listen(port, () => {
-  console.log(`Hive MCP server running at http://localhost:${port}`);
-});
 
 export const getActionTool = {
   name: "get_action",
@@ -154,4 +94,128 @@ export const deleteActionTool = {
     required: ["actionId"]
   },
   annotations: { destructiveHint: true }
-}; 
+};
+
+// Handler map
+const hiveToolHandlers: Record<string, (extra: any) => Promise<any>> = {
+  get_action: async (extra) => {
+    const { actionId } = extra.args;
+    const token = getHiveToken(extra);
+    if (!token) throw new Error("No Hive API token provided");
+    const resp = await axios.get(`${HIVE_API_BASE}/actions/${actionId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return resp.data;
+  },
+  list_actions: async (extra) => {
+    const { workspaceId, ...rest } = extra.args;
+    const token = getHiveToken(extra);
+    if (!token) throw new Error("No Hive API token provided");
+    const resp = await axios.get(`${HIVE_API_BASE}/workspaces/${workspaceId}/actions`, {
+      headers: { Authorization: `Bearer ${token}` },
+      params: rest
+    });
+    return resp.data;
+  },
+  create_action: async (extra) => {
+    const token = getHiveToken(extra);
+    if (!token) throw new Error("No Hive API token provided");
+    const resp = await axios.post(`${HIVE_API_BASE}/actions/create`, extra.args, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return resp.data;
+  },
+  update_action: async (extra) => {
+    const { actionId, updates } = extra.args;
+    const token = getHiveToken(extra);
+    if (!token) throw new Error("No Hive API token provided");
+    const resp = await axios.put(`${HIVE_API_BASE}/actions/${actionId}`, updates, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return resp.data;
+  },
+  delete_action: async (extra) => {
+    const { actionId } = extra.args;
+    const token = getHiveToken(extra);
+    if (!token) throw new Error("No Hive API token provided");
+    const resp = await axios.delete(`${HIVE_API_BASE}/actions/${actionId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return resp.data;
+  }
+};
+
+// Register the handlers with the MCP server
+const exportedTools = [
+  getActionTool,
+  listActionsTool,
+  createActionTool,
+  updateActionTool,
+  deleteActionTool
+];
+
+for (const tool of exportedTools) {
+  server.tool(
+    tool.name,
+    tool.description,
+    hiveToolHandlers[tool.name]
+  );
+}
+
+// Only keep the plain object tool exports and the rest of the server logic
+
+const app = express();
+const port = process.env.PORT || 4100;
+
+// Store active transport
+let activeTransport: SSEServerTransport | null = null;
+
+// Enhanced CORS setup
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+app.use(express.json());
+
+// SSE endpoint for server-to-client communication
+app.get("/sse", (req, res) => {
+  console.log("SSE connection attempt");
+  // Create transport
+  const transport = new SSEServerTransport("/messages", res);
+  activeTransport = transport;
+  // Connect server to transport
+  server.connect(transport);
+  console.log("SSE connection established");
+  // Handle connection close
+  req.on('close', () => {
+    console.log("SSE connection closed");
+    if (activeTransport === transport) {
+      activeTransport = null;
+    }
+  });
+});
+
+// Message endpoint for client-to-server communication
+app.post("/messages", (req, res) => {
+  if (!activeTransport) {
+    return res.status(503).send("SSE connection not established");
+  }
+  console.log("Received message from client");
+  try {
+    activeTransport.handlePostMessage(req, res);
+  } catch (error: any) {
+    console.error(`Error handling message: ${error.message}`);
+    res.status(500).send(error.message);
+  }
+});
+
+// Health check endpoint
+app.get("/health", (_req, res) => {
+  res.status(200).send("OK");
+});
+
+app.listen(port, () => {
+  console.log(`Hive MCP server running at http://localhost:${port}`);
+}); 
