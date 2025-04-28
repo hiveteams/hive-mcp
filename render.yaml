@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: hive-mcp-server
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: HIVE_API_TOKEN
+        sync: false # Set this in the Render dashboard or with the CLI 
