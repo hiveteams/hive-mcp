@@ -181,16 +181,14 @@ app.use(express.json());
 
 // SSE endpoint for server-to-client communication
 app.get("/sse", (req, res) => {
-  console.log("SSE connection attempt");
+  res.setHeader("Content-Type", "text/event-stream");
   // Create transport
   const transport = new SSEServerTransport("/messages", res);
   activeTransport = transport;
   // Connect server to transport
   server.connect(transport);
-  console.log("SSE connection established");
   // Handle connection close
   req.on('close', () => {
-    console.log("SSE connection closed");
     if (activeTransport === transport) {
       activeTransport = null;
     }
