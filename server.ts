@@ -147,10 +147,11 @@ server.tool(
   "update_action",
   {
     actionId: z.string(),
-    status: z.string(),          // the only field callers may change
+    status: z.string(),
+    agileStoryPoints: z.number().int().optional().describe("An estimate for the effort in points"),
   },
   async (
-    { actionId, status }: { actionId: string; status: string },
+    { actionId, status, agileStoryPoints }: { actionId: string; status: string; agileStoryPoints?: number },
     extra: Extra,
   ) => {
     const token = getHiveToken(extra);
@@ -160,7 +161,7 @@ server.tool(
     // same pattern as create_action: POST, api_key header, workspace in body
     const resp = await axios.post(
       `${HIVE_API_BASE}/actions/update`,
-      { actionId, status, workspace },
+      { actionId, status, workspace, ...(agileStoryPoints !== undefined ? { agileStoryPoints } : {}) },
       { headers: { "api_key": token } },
     );
 
