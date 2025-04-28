@@ -160,8 +160,8 @@ server.tool(
 
     // same pattern as create_action: POST, api_key header, workspace in body
     const resp = await axios.post(
-      `${HIVE_API_BASE}/actions/update`,
-      { actionId, status, workspace, ...(agileStoryPoints !== undefined ? { agileStoryPoints } : {}) },
+      `${HIVE_API_BASE}/actions/${actionId}`,
+      { status, workspace, ...(agileStoryPoints !== undefined ? { agileStoryPoints } : {}) },
       { headers: { "api_key": token } },
     );
 
