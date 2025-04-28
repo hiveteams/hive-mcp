@@ -110,7 +110,7 @@ server.tool(
   {
     title: z.string(),
     projectId: z.string().optional(),
-    assignees: z.array(z.string()).optional(),
+    assignees: z.array(z.string()),
     description: z.string().optional(),
   },
   async (
