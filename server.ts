@@ -112,8 +112,6 @@ server.tool(
     projectId: z.string().optional(),
     assigneeId: z.string().optional(),
     description: z.string().optional(),
-    startDate: z.string().optional(),
-    dueDate: z.string().optional(),
   },
   async (
     args: {
@@ -121,8 +119,6 @@ server.tool(
       projectId?: string;
       assigneeId?: string;
       description?: string;
-      startDate?: string;
-      dueDate?: string;
     },
     extra: Extra,
   ) => {
@@ -232,7 +228,7 @@ app.get("/sse", async (req, res) => {
   const transport = new SSEServerTransport("/messages", res);
 
   if (apiKey) {
-    sessionTokens[transport.sessionId] = apiKey.startsWith("Bearer ") ? apiKey.slice(7) : apiKey;
+    sessionTokens[transport.sessionId] = apiKey;
   }
   if (workspace) {
     sessionWorkspaces[transport.sessionId] = workspace;
