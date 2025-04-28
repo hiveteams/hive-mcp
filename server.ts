@@ -200,7 +200,10 @@ async function executeTool(token: string, name: ToolName, args: Record<string, a
 const app = express();
 app.use(bodyParser.json({ limit: "2mb" }));
 
-app.get("/", (_req, res) => res.json(capabilities));
+app.get("/", (_req, res) => res.json({
+  capabilities,
+  tools
+}));
 app.get("/health", (_req, res) => res.send("ok"));
 app.get("/mcp", (req, res) => {
   res.set({
