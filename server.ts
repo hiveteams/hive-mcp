@@ -202,7 +202,16 @@ app.use(bodyParser.json({ limit: "2mb" }));
 
 app.get("/", (_req, res) => res.json(capabilities));
 app.get("/health", (_req, res) => res.send("ok"));
-app.get("/mcp", (_req, res) => res.status(405).set("Allow", "POST").send("Use POST /mcp"));
+app.get("/mcp", (req, res) => {
+  res.set({
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive"
+  });
+  res.status(200).write("event: ping\ndata: ok\n\n");
+  // Optionally, keep the connection open for real SSE
+  // res.end(); // Uncomment if you want to immediately close the connection
+});
 
 // Main MCP endpoint
 app.post("/mcp", async (req: Request, res: Response) => {
