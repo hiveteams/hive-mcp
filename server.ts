@@ -151,17 +151,43 @@ server.tool(
   "update_action",
   {
     actionId: z.string(),
-    updates: z.record(z.any()),
+    status: z.string().optional(),           // allowed update field
+    agileStoryPoints: z.number().int().optional(), // new allowed field
   },
   async (
-    { actionId, updates }: { actionId: string; updates: Record<string, unknown> },
+    {
+      actionId,
+      status,
+      agileStoryPoints,
+    }: {
+      actionId: string;
+      status?: string;
+      agileStoryPoints?: number;
+    },
     extra: Extra,
   ) => {
     const token = getHiveToken(extra);
-    const resp = await axios.put(`${HIVE_API_BASE}/actions/${actionId}`, updates, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return resp.data;
+
+    // Build payload containing only the permitted fields actually supplied
+    const updates: Record<string, unknown> = {};
+    if (status !== undefined) updates.status = status;
+    if (agileStoryPoints !== undefined) updates.agileStoryPoints = agileStoryPoints;
+
+    // POST to the correct endpoint (no actionId in body)
+    const resp = await axios.post(
+      `${HIVE_API_BASE}/actions/${actionId}`,
+      updates,
+      { headers: { "api_key": token } },
+    );
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(resp.data),
+        },
+      ],
+    };
   },
 );
 
