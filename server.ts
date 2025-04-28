@@ -216,6 +216,10 @@ app.get("/health", (_req, res) => {
   res.status(200).send("OK");
 });
 
+app.get("/", (_req, res) => {
+  res.send("MCP Hive Actions Server is running!");
+});
+
 app.listen(port, () => {
   console.log(`Hive MCP server running at http://localhost:${port}`);
 }); 
