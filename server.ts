@@ -174,7 +174,7 @@ server.tool(
     if (agileStoryPoints !== undefined) updates.agileStoryPoints = agileStoryPoints;
 
     // POST to the correct endpoint (no actionId in body)
-    const resp = await axios.post(
+    const resp = await axios.put(
       `${HIVE_API_BASE}/actions/${actionId}`,
       updates,
       { headers: { "api_key": token } },
