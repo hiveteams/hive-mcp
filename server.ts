@@ -20,7 +20,7 @@ const server = new McpServer({ name: "hive-mcp-server", version: "1.0.0" });
 //--------------------------------------------------------------------
 // 2. CONSTANTS, TOKEN & WORKSPACE CACHES, UTILITIES
 //--------------------------------------------------------------------
-const HIVE_API_BASE = "https://app.hive.com/api/v1";
+const HIVE_API_BASE = "https://beta.hive.com/api/v1";
 
 // Cache token and workspace per SSE sessionId
 const sessionTokens: Record<string, string> = {};
