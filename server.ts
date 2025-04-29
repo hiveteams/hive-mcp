@@ -135,9 +135,9 @@ server.tool(
       content: [
         {
           type: "text",
-          text: JSON.stringify(resp.data)
-        }
-      ]
+          text: JSON.stringify(resp.data),
+        },
+      ],
     };
   },
 );
@@ -169,7 +169,7 @@ server.tool(
     if (status !== undefined) updates.status = status;
     if (agileStoryPoints !== undefined) updates.agileStoryPoints = agileStoryPoints;
 
-    // POST to the correct endpoint (no actionId in body)
+    // PUT to the correct endpoint (no actionId in body)
     const resp = await axios.put(
       `${HIVE_API_BASE}/actions/${actionId}`,
       updates,
@@ -221,22 +221,31 @@ const transports: {
   sse: {},
 };
 
+//------------------------------------------------------
+// 4.1  SSE ENDPOINT WITH HEARTBEAT
+//------------------------------------------------------
 app.get("/sse", async (req, res) => {
   const apiKey = req.query.api_key as string | undefined;
   const workspace = req.query.workspace as string | undefined;
 
   const transport = new SSEServerTransport("/messages", res);
 
-  if (apiKey) {
-    sessionTokens[transport.sessionId] = apiKey;
-  }
-  if (workspace) {
-    sessionWorkspaces[transport.sessionId] = workspace;
-  }
+  if (apiKey) sessionTokens[transport.sessionId] = apiKey;
+  if (workspace) sessionWorkspaces[transport.sessionId] = workspace;
 
   transports.sse[transport.sessionId] = transport;
 
+  // ----- heartbeat every 25 s to keep connection alive -----
+  const ping = setInterval(() => {
+    if (!res.writableEnded) {
+      res.write(": keepalive\n\n"); // SSE comment
+    } else {
+      clearInterval(ping);
+    }
+  }, 25_000);
+
   res.on("close", () => {
+    clearInterval(ping);
     delete transports.sse[transport.sessionId];
     delete sessionTokens[transport.sessionId];
     delete sessionWorkspaces[transport.sessionId];
@@ -245,6 +254,9 @@ app.get("/sse", async (req, res) => {
   await server.connect(transport);
 });
 
+//------------------------------------------------------
+// 4.2  POST FOR CLIENT MESSAGES
+//------------------------------------------------------
 app.post("/messages", async (req, res) => {
   const sessionId = req.query.sessionId as string;
   const transport = transports.sse[sessionId];
@@ -252,7 +264,16 @@ app.post("/messages", async (req, res) => {
   await transport.handlePostMessage(req, res, req.body);
 });
 
+//------------------------------------------------------
+// 4.3  HEALTH & ROOT
+//------------------------------------------------------
 app.get("/health", (_req, res) => res.send("OK"));
 app.get("/", (_req, res) => res.send("MCP Hive Actions Server is running!"));
 
-app.listen(port, () => console.log(`Hive MCP server running on port ${port}`));
+//--------------------------------------------------------------------
+// 5. START SERVER WITH UNLIMITED TIMEOUT
+//--------------------------------------------------------------------
+const httpServer = app.listen(port, () => console.log(`Hive MCP server running on port ${port}`));
+
+// Disable default 2‑minute idle timeout (important for SSE)
+(httpServer as any).timeout = 0; // eslint-disable-line @typescript-eslint/no-explicit-any
