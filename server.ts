@@ -149,16 +149,19 @@ server.tool(
     actionId: z.string(),
     status: z.string().optional(),           // allowed update field
     agileStoryPoints: z.number().int().optional(), // new allowed field
+    githubBranchNames: z.array(z.string()).optional(), // array of github branch names
   },
   async (
     {
       actionId,
       status,
       agileStoryPoints,
+      githubBranchNames,
     }: {
       actionId: string;
       status?: string;
       agileStoryPoints?: number;
+      githubBranchNames?: string[];
     },
     extra: Extra,
   ) => {
@@ -168,6 +171,7 @@ server.tool(
     const updates: Record<string, unknown> = {};
     if (status !== undefined) updates.status = status;
     if (agileStoryPoints !== undefined) updates.agileStoryPoints = agileStoryPoints;
+    if (githubBranchNames !== undefined) updates.githubBranchNames = githubBranchNames;
 
     // PUT to the correct endpoint (no actionId in body)
     const resp = await axios.put(
