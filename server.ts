@@ -3,11 +3,9 @@
 
 import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import cors from "cors";
 import dotenv from "dotenv";
-import axios from "axios";
 import { z } from "zod";
 
 dotenv.config();
@@ -66,8 +64,19 @@ server.tool(
   { actionId: z.string() },
   async ({ actionId }: { actionId: string }, extra: Extra) => {
     const token = getHiveToken(extra);
-    const resp = await axios.get(`${HIVE_API_BASE}/actions/${actionId}`, { headers: { "api_key": token } });
-    return resp.data;
+
+    const resp = await fetch(`${HIVE_API_BASE}/actions/${actionId}`, { 
+      headers: { "api_key": token } 
+    }).then(res => res.json());
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(resp),
+        },
+      ],
+    };
   },
 );
 
@@ -94,11 +103,25 @@ server.tool(
     const token = getHiveToken(extra);
     const { assigneeId, projectId, limit, cursor } = args;
 
-    const resp = await axios.get(`${HIVE_API_BASE}/workspaces/${workspace}/actions`, {
-      headers: { Authorization: `Bearer ${token}` },
-      params: { assigneeId, projectId, limit, cursor },
+    // Building URL with query parameters
+    const url = new URL(`${HIVE_API_BASE}/workspaces/${workspace}/actions`);
+    if (assigneeId) url.searchParams.append("assigneeId", assigneeId);
+    if (projectId) url.searchParams.append("projectId", projectId);
+    if (limit) url.searchParams.append("limit", limit.toString());
+    if (cursor) url.searchParams.append("cursor", cursor);
+
+    const resp = await fetch(url.toString(), {
+      headers: { api_key: token }
     });
-    return resp.data;
+    const data = await resp.json();
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(data),
+        },
+      ],
+    };
   },
 );
 
@@ -124,16 +147,25 @@ server.tool(
     const workspace = resolveWorkspace(extra);
     if (!workspace) throw new Error("workspace required (query string in /sse)");
 
-    const resp = await axios.post(
+    const resp = await fetch(
       `${HIVE_API_BASE}/actions/create`,
-      { ...args, workspace: resolveWorkspace(extra) },
-      { headers: { "api_key": token } },
+      {
+        method: 'POST',
+        headers: { 
+          "api_key": token,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ ...args, workspace })
+      }
     );
+
+    const data = await resp.json();
+
     return {
       content: [
         {
           type: "text",
-          text: JSON.stringify(resp.data),
+          text: JSON.stringify(data),
         },
       ],
     };
@@ -172,17 +204,24 @@ server.tool(
     if (githubBranchNames !== undefined) updates.githubBranchNames = githubBranchNames;
 
     // PUT to the correct endpoint (no actionId in body)
-    const resp = await axios.put(
+    const resp = await fetch(
       `${HIVE_API_BASE}/actions/${actionId}`,
-      updates,
-      { headers: { "api_key": token } },
+      {
+        method: 'PUT',
+        headers: { 
+          "api_key": token,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(updates)
+      }
     );
 
+    const data = await resp.json();
     return {
       content: [
         {
           type: "text",
-          text: JSON.stringify(resp.data),
+          text: JSON.stringify(data),
         },
       ],
     };
@@ -195,10 +234,19 @@ server.tool(
   { actionId: z.string() },
   async ({ actionId }: { actionId: string }, extra: Extra) => {
     const token = getHiveToken(extra);
-    const resp = await axios.delete(`${HIVE_API_BASE}/actions/${actionId}`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const resp = await fetch(`${HIVE_API_BASE}/actions/${actionId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
     });
-    return resp.data;
+    const data = await resp.json();
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(data),
+        },
+      ],
+    };
   },
 );
 
