@@ -66,9 +66,7 @@ server.tool(
   { actionId: z.string() },
   async ({ actionId }: { actionId: string }, extra: Extra) => {
     const token = getHiveToken(extra);
-    const resp = await axios.get(`${HIVE_API_BASE}/actions/${actionId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const resp = await axios.get(`${HIVE_API_BASE}/actions/${actionId}`, { headers: { "api_key": token } });
     return resp.data;
   },
 );
